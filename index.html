@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>雙階層曼陀羅九宮格思考法 - 練習與創作工作坊</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- React 18 & Babel Standalone -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- html2canvas & jsPDF for Image / PDF Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;900&display=swap');
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+    }
+    /* 自訂滾動條 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    .print-canvas {
+      width: 1200px !important;
+      min-width: 1200px !important;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // --- 內建圖示 (SVG 零外部依賴) ---
+    const Icons = {
+      Grid: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>,
+      Sparkles: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>,
+      Home: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
+      Download: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>,
+      Share: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>,
+      Skip: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>,
+      Lock: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>,
+      Check: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>,
+      Alert: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>,
+      Eye: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>,
+      FileText: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
+      Layers: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>,
+      ArrowLeft: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>,
+      Maximize: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>,
+      HelpCircle: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+    };
+
+    // --- 8 個子區塊的色調配置 (色彩繼承體系) ---
+    // 區塊編號 0..8 (4 為中心主區)
+    const BLOCK_COLORS = {
+      0: { name: '薄荷綠', border: 'border-emerald-400', bg: 'bg-emerald-50/70', badge: 'bg-emerald-100 text-emerald-800', light: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-400' },
+      1: { name: '晨天藍', border: 'border-cyan-400', bg: 'bg-cyan-50/70', badge: 'bg-cyan-100 text-cyan-800', light: 'bg-cyan-50', text: 'text-cyan-700', ring: 'ring-cyan-400' },
+      2: { name: '晴空藍', border: 'border-sky-400', bg: 'bg-sky-50/70', badge: 'bg-sky-100 text-sky-800', light: 'bg-sky-50', text: 'text-sky-700', ring: 'ring-sky-400' },
+      3: { name: '琥珀金', border: 'border-amber-400', bg: 'bg-amber-50/70', badge: 'bg-amber-100 text-amber-800', light: 'bg-amber-50', text: 'text-amber-700', ring: 'ring-amber-400' },
+      4: { name: '核心紫', border: 'border-indigo-500', bg: 'bg-indigo-50/80', badge: 'bg-indigo-100 text-indigo-900', light: 'bg-indigo-50', text: 'text-indigo-800', ring: 'ring-indigo-500' },
+      5: { name: '珊瑚粉', border: 'border-rose-400', bg: 'bg-rose-50/70', badge: 'bg-rose-100 text-rose-800', light: 'bg-rose-50', text: 'text-rose-700', ring: 'ring-rose-400' },
+      6: { name: '活力橘', border: 'border-orange-400', bg: 'bg-orange-50/70', badge: 'bg-orange-100 text-orange-800', light: 'bg-orange-50', text: 'text-orange-700', ring: 'ring-orange-400' },
+      7: { name: '薰衣草', border: 'border-violet-400', bg: 'bg-violet-50/70', badge: 'bg-violet-100 text-violet-800', light: 'bg-violet-50', text: 'text-violet-700', ring: 'ring-violet-400' },
+      8: { name: '紫羅蘭', border: 'border-fuchsia-400', bg: 'bg-fuchsia-50/70', badge: 'bg-fuchsia-100 text-fuchsia-800', light: 'bg-fuchsia-50', text: 'text-fuchsia-700', ring: 'ring-fuchsia-400' },
+    };
+
+    const MINIMAL_COLORS = {
+      name: '極簡白', border: 'border-slate-300', bg: 'bg-white', badge: 'bg-slate-100 text-slate-700', light: 'bg-slate-50', text: 'text-slate-800', ring: 'ring-slate-400'
+    };
+
+    // --- 思考路徑次序定義 ---
+    // 3x3 內各位置: 0:左上, 1:中上, 2:右上, 3:左中, 4:中心, 5:右中, 6:左下, 7:中下, 8:右下
+    // 螺旋型順時針順序 (以中上開始)
+    const SPIRAL_ORDER = [1, 2, 5, 8, 7, 6, 3, 0];
+    // 十字型順序: 先十字 4 格，再 4 角落
+    const CROSS_ORDER_P1 = [1, 7, 3, 5]; // 上下左右
+    const CROSS_ORDER_P2 = [0, 2, 6, 8]; // 四角落
+    const RADIANT_ORDER = [0, 1, 2, 3, 5, 6, 7, 8];
+
+    // --- 內建教學與專案範本 ---
+    const TEMPLATES = [
+      {
+        id: 'ohtani',
+        title: '大谷翔平九宮格（目標達成法）',
+        desc: '高中畢業獲 8 球團指名第 1！經典 81 格目標具體拆解法。',
+        category: '目標管理',
+        mode: 'beginner',
+        pathway: 'spiral',
+        core: '8 球團第一指名',
+        subtopics: {
+          0: '體格健壯', 1: '控球穩定', 2: '球質提升',
+          3: '球速 160km/h', 5: '變化球銳利',
+          6: '好運累積', 7: '人際與品格', 8: '心理韌性'
+        },
+        details: {
+          6: { 1: '撿垃圾', 2: '打掃房間', 3: '珍惜球具', 5: '禮貌打招呼', 7: '對裁判謙遜', 0: '讀書充實', 6: '正面思考', 8: '受人信賴' },
+          7: { 1: '受人愛戴', 2: '感謝父母', 3: '同理隊友', 5: '謙虛學習', 7: '守時守信', 0: '關懷環境', 6: '不道人短', 8: '團隊優先' },
+          3: { 1: '核心肌群強化', 2: '甩臂柔軟度', 3: '下盤重心穩定', 5: '跨步延伸', 7: '投球機制一致', 0: '爆發力重訓', 6: '旋轉加速度', 8: '放球點延伸' }
+        }
+      },
+      {
+        id: 'writing',
+        title: '文章與簡報大綱企劃（黃金圈 Why-What-How）',
+        desc: '參考 Dean 部落格教學，運用螺旋順序結構化梳理內容脈絡。',
+        category: '內容創作',
+        mode: 'beginner',
+        pathway: 'spiral',
+        core: '曼陀羅思考法文章',
+        subtopics: {
+          1: '為什麼需要 (Why)', 2: '讀者痛點分析', 5: '九宮格原理 (What)',
+          8: '三大思考路徑', 7: '邏輯框架結合', 6: '文章大綱實例',
+          3: '數位工具推薦', 0: '行動號召與總結'
+        },
+        details: {
+          1: { 1: '改善思考盲點', 2: '突破寫作卡關', 3: '收斂發散靈感', 5: '建立結構化思維' }
+        }
+      },
+      {
+        id: 'swot',
+        title: '策略決策分析（十字型 + SWOT）',
+        desc: '優先填寫優劣勢、機會與威脅 4 大核心，再展開細部應對策。',
+        category: '策略分析',
+        mode: 'beginner',
+        pathway: 'cross',
+        core: '個人品牌發展策略',
+        subtopics: {
+          1: '優勢 Strengths (S)', 7: '劣勢 Weaknesses (W)',
+          3: '機會 Opportunities (O)', 5: '威脅 Threats (T)',
+          0: 'SO 積極進攻策', 2: 'ST 善用優勢避險',
+          6: 'WO 借力補短策', 8: 'WT 防守退避策'
+        },
+        details: {}
+      },
+      {
+        id: 'blank',
+        title: '自由聯想空白九宮格',
+        desc: '無預設內容，適合從一個核心關鍵字向外自由延伸與拆解。',
+        category: '自由發想',
+        mode: 'advanced',
+        pathway: 'radiant',
+        core: '',
+        subtopics: {},
+        details: {}
+      }
+    ];
+
+    // --- 主程式 App ---
+    function App() {
+      // 頁面狀態: 'home' (首頁) | 'workspace' (編輯工作區)
+      const [view, setView] = useState('home');
+
+      // 核心專案狀態 (Single Source of Truth)
+      const [project, setProject] = useState(() => {
+        const saved = localStorage.getItem('mandala_project_v1');
+        if (saved) {
+          try { return JSON.parse(saved); } catch (e) { }
+        }
+        return {
+          id: 'default',
+          title: '未命名思考練習',
+          mode: 'beginner', // 'beginner' (固定 81 格 + 強約束引導) | 'advanced' (隨選展開 + 自由填寫)
+          pathway: 'spiral', // 'spiral' (螺旋) | 'cross' (十字) | 'radiant' (放射)
+          colorStyle: 'inherited', // 'inherited' (色彩繼承) | 'minimal' (極簡中性)
+          coreTopic: '',
+          subtopics: {}, // 0..8 (4 代表核心中心, 其餘 8 格對應周圍 8 個子題)
+          details: {}, // { [subIndex]: { [detailIndex]: string } }
+          expandedBlocks: { 0: false, 1: false, 2: false, 3: false, 5: false, 6: false, 7: false, 8: false },
+          skippedSteps: {} // { [blockIndex_cellIndex]: true }
+        };
+      });
+
+      // 當前在中小螢幕聚焦的區塊 (0..8, 4 代表核心 3x3)
+      const [focusedBlock, setFocusedBlock] = useState(4);
+      // 桌機是否強制「單一 3x3 聚焦模式」檢視
+      const [singleBlockView, setSingleBlockView] = useState(false);
+
+      // 安全防呆確認 Modal 狀態
+      const [confirmModal, setConfirmModal] = useState({
+        isOpen: false,
+        subIndex: null,
+        subTitle: '',
+        detailCount: 0
+      });
+
+      // 匯出通知 / Toast 提示
+      const [toast, setToast] = useState(null);
+      const showToast = (msg, type = 'info') => {
+        setToast({ msg, type });
+        setTimeout(() => setToast(null), 3500);
+      };
+
+      // 自動儲存到 LocalStorage
+      useEffect(() => {
+        localStorage.setItem('mandala_project_v1', JSON.stringify(project));
+      }, [project]);
+
+      // 載入範本
+      const loadTemplate = (tpl) => {
+        const newProj = {
+          id: 'proj_' + Date.now(),
+          title: tpl.title,
+          mode: tpl.mode,
+          pathway: tpl.pathway,
+          colorStyle: project.colorStyle || 'inherited',
+          coreTopic: tpl.core,
+          subtopics: { ...tpl.subtopics, 4: tpl.core },
+          details: JSON.parse(JSON.stringify(tpl.details || {})),
+          expandedBlocks: {
+            0: !!(tpl.details && tpl.details[0]),
+            1: !!(tpl.details && tpl.details[1]),
+            2: !!(tpl.details && tpl.details[2]),
+            3: !!(tpl.details && tpl.details[3]),
+            5: !!(tpl.details && tpl.details[5]),
+            6: !!(tpl.details && tpl.details[6]),
+            7: !!(tpl.details && tpl.details[7]),
+            8: !!(tpl.details && tpl.details[8])
+          },
+          skippedSteps: {}
+        };
+        setProject(newProj);
+        setFocusedBlock(4);
+        setView('workspace');
+        showToast(`已載入範本：「${tpl.title}」`, 'success');
+      };
+
+      // --- 強約束引導邏輯 ---
+      // 判定特定格子是否已解鎖 (isUnlocked)
+      const checkIsUnlocked = (blockIdx, cellIdx) => {
+        // 進階模式下全部自由解鎖
+        if (project.mode === 'advanced') return true;
+
+        // 在核心九宮格 (Block 4) 內部
+        if (blockIdx === 4) {
+          // 核心中心 (4,4) 永遠解鎖
+          if (cellIdx === 4) return true;
+          // 若核心中心尚未填寫，周圍 8 格皆鎖定
+          if (!project.coreTopic || !project.coreTopic.trim()) return false;
+
+          // 放射型: 只要核心填寫完，外圍 8 格皆解鎖
+          if (project.pathway === 'radiant') return true;
+
+          // 螺旋型: 必須按照 SPIRAL_ORDER 順序解鎖
+          if (project.pathway === 'spiral') {
+            const stepOrder = SPIRAL_ORDER;
+            const currentOrderIdx = stepOrder.indexOf(cellIdx);
+            if (currentOrderIdx === -1) return true;
+            if (currentOrderIdx === 0) return true; // 第一步永遠解鎖
+
+            // 前一步驟必須已填寫或已標記 skip
+            const prevCellIdx = stepOrder[currentOrderIdx - 1];
+            const prevVal = project.subtopics[prevCellIdx];
+            const isPrevSkipped = project.skippedSteps[`4_${prevCellIdx}`];
+            if (!isPrevSkipped && (!prevVal || !prevVal.trim())) {
+              return false; // 前一步清空或未填，嚴格重新鎖定
+            }
+            return checkIsUnlocked(4, prevCellIdx); // 遞迴確保更前面的步驟也是解鎖狀態
+          }
+
+          // 十字型: 先解鎖上下左右 4 格，填完後解鎖 4 角落
+          if (project.pathway === 'cross') {
+            if (CROSS_ORDER_P1.includes(cellIdx)) {
+              return true; // 十字 4 格自由解鎖
+            }
+            if (CROSS_ORDER_P2.includes(cellIdx)) {
+              // 檢查十字 4 格是否全部填寫或略過
+              const p1Finished = CROSS_ORDER_P1.every(idx => {
+                const val = project.subtopics[idx];
+                const skipped = project.skippedSteps[`4_${idx}`];
+                return skipped || (val && val.trim());
+              });
+              return p1Finished;
+            }
+          }
+          return true;
+        }
+
+        // 在外圍 8 個次級九宮格 (Block 0,1,2,3,5,6,7,8) 內部
+        // 該子區塊對應的次級中心 cellIdx === 4 是由 Block 4 繼承來的
+        if (cellIdx === 4) return false; // 次級中心為展示唯讀，由核心同步
+
+        // 該區塊的主題名稱必須存在且有效
+        const subtopicTitle = project.subtopics[blockIdx];
+        if (!subtopicTitle || !subtopicTitle.trim()) return false;
+
+        // 放射型: 只要子題有名稱，周圍 8 格直接解鎖
+        if (project.pathway === 'radiant') return true;
+
+        // 螺旋型
+        if (project.pathway === 'spiral') {
+          const stepOrder = SPIRAL_ORDER;
+          const currentOrderIdx = stepOrder.indexOf(cellIdx);
+          if (currentOrderIdx === -1) return true;
+          if (currentOrderIdx === 0) return true;
+
+          const prevCellIdx = stepOrder[currentOrderIdx - 1];
+          const prevVal = project.details[blockIdx]?.[prevCellIdx];
+          const isPrevSkipped = project.skippedSteps[`${blockIdx}_${prevCellIdx}`];
+          if (!isPrevSkipped && (!prevVal || !prevVal.trim())) {
+            return false;
+          }
+          return checkIsUnlocked(blockIdx, prevCellIdx);
+        }
+
+        // 十字型
+        if (project.pathway === 'cross') {
+          if (CROSS_ORDER_P1.includes(cellIdx)) return true;
+          if (CROSS_ORDER_P2.includes(cellIdx)) {
+            const p1Finished = CROSS_ORDER_P1.every(idx => {
+              const val = project.details[blockIdx]?.[idx];
+              const skipped = project.skippedSteps[`${blockIdx}_${idx}`];
+              return skipped || (val && val.trim());
+            });
+            return p1Finished;
+          }
+        }
+
+        return true;
+      };
+
+      // 取得特定格子的解鎖/完成/略過狀態
+      const getCellStatus = (blockIdx, cellIdx) => {
+        const unlocked = checkIsUnlocked(blockIdx, cellIdx);
+        let val = '';
+        if (blockIdx === 4) {
+          val = cellIdx === 4 ? project.coreTopic : project.subtopics[cellIdx];
+        } else {
+          val = cellIdx === 4 ? project.subtopics[blockIdx] : project.details[blockIdx]?.[cellIdx];
+        }
+        const isSkipped = !!project.skippedSteps[`${blockIdx}_${cellIdx}`];
+        const isFilled = val && val.trim().length > 0;
+        return { unlocked, isFilled, isSkipped, val: val || '' };
+      };
+
+      // 計算下一個應該跳轉的格子 (Enter 鍵行為)
+      const findNextCell = (currentBlockIdx, currentCellIdx) => {
+        let order = SPIRAL_ORDER;
+        if (project.pathway === 'cross') {
+          order = [...CROSS_ORDER_P1, ...CROSS_ORDER_P2];
+        } else if (project.pathway === 'radiant') {
+          order = RADIANT_ORDER;
+        }
+
+        if (currentBlockIdx === 4 && currentCellIdx === 4) {
+          // 從核心中心出發，跳到引導的第一步
+          return { nextBlock: 4, nextCell: order[0] };
+        }
+
+        const idxInOrder = order.indexOf(currentCellIdx);
+        if (idxInOrder !== -1 && idxInOrder < order.length - 1) {
+          // 同一個九宮格內的下一個序位
+          return { nextBlock: currentBlockIdx, nextCell: order[idxInOrder + 1] };
+        }
+
+        // 若當前九宮格已填到最後一格
+        if (currentBlockIdx === 4) {
+          // 從核心跳往第一個子區塊 (依照順序)
+          const firstSubBlock = order[0];
+          return { nextBlock: firstSubBlock, nextCell: order[0] };
+        } else {
+          // 從子區塊跳到下一個子區塊
+          const blockOrderIdx = order.indexOf(currentBlockIdx);
+          if (blockOrderIdx !== -1 && blockOrderIdx < order.length - 1) {
+            const nextSub = order[blockOrderIdx + 1];
+            return { nextBlock: nextSub, nextCell: order[0] };
+          }
+        }
+        return null;
+      };
+
+      // 更新格子內容
+      const updateCellValue = (blockIdx, cellIdx, text) => {
+        const trimmed = text.slice(0, 35); // 上限 35 字，保護版面聚焦
+
+        if (blockIdx === 4) {
+          if (cellIdx === 4) {
+            // 核心主題
+            setProject(prev => ({
+              ...prev,
+              coreTopic: trimmed,
+              subtopics: { ...prev.subtopics, 4: trimmed }
+            }));
+          } else {
+            // 核心九宮格外圍 (也就是子題名稱)
+            const currentSubTitle = project.subtopics[cellIdx] || '';
+            const hasDetails = project.details[cellIdx] && Object.values(project.details[cellIdx]).some(v => v && v.trim());
+
+            // 若使用者將已有細節的子題「完全清空」，觸發安全防呆確認
+            if (currentSubTitle.trim() && !trimmed.trim() && hasDetails) {
+              const count = Object.values(project.details[cellIdx]).filter(v => v && v.trim()).length;
+              setConfirmModal({
+                isOpen: true,
+                subIndex: cellIdx,
+                subTitle: currentSubTitle,
+                detailCount: count
+              });
+              return;
+            }
+
+            setProject(prev => {
+              const updatedSub = { ...prev.subtopics, [cellIdx]: trimmed };
+              // 取消該格的略過狀態
+              const updatedSkipped = { ...prev.skippedSteps };
+              delete updatedSkipped[`4_${cellIdx}`];
+
+              return {
+                ...prev,
+                subtopics: updatedSub,
+                skippedSteps: updatedSkipped
+              };
+            });
+          }
+        } else {
+          // 子九宮格內部 (blockIdx 0..8, cellIdx !== 4)
+          setProject(prev => {
+            const blockDetails = { ...(prev.details[blockIdx] || {}), [cellIdx]: trimmed };
+            const updatedSkipped = { ...prev.skippedSteps };
+            delete updatedSkipped[`${blockIdx}_${cellIdx}`];
+
+            return {
+              ...prev,
+              details: { ...prev.details, [blockIdx]: blockDetails },
+              skippedSteps: updatedSkipped
+            };
+          });
+        }
+      };
+
+      // 確認連帶清除子九宮格細節 (防呆 Modal 確認)
+      const handleConfirmCascadeClear = () => {
+        const subIdx = confirmModal.subIndex;
+        if (subIdx !== null) {
+          setProject(prev => {
+            const updatedSub = { ...prev.subtopics, [subIdx]: '' };
+            const updatedDetails = { ...prev.details };
+            delete updatedDetails[subIdx]; // 連帶清空該子九宮格
+            return {
+              ...prev,
+              subtopics: updatedSub,
+              details: updatedDetails
+            };
+          });
+          showToast(`已清空「${confirmModal.subTitle}」及其關聯的細節內容`, 'info');
+        }
+        setConfirmModal({ isOpen: false, subIndex: null, subTitle: '', detailCount: 0 });
+      };
+
+      // 暫時跳過 (Skip)
+      const handleSkipStep = (blockIdx, cellIdx) => {
+        setProject(prev => ({
+          ...prev,
+          skippedSteps: {
+            ...prev.skippedSteps,
+            [`${blockIdx}_${cellIdx}`]: true
+          }
+        }));
+        showToast('已暫時略過此步驟，已解鎖下一格', 'info');
+
+        // 自動跳至下一格
+        const next = findNextCell(blockIdx, cellIdx);
+        if (next) {
+          const el = document.getElementById(`cell-${next.nextBlock}-${next.nextCell}`);
+          if (el) el.focus();
+        }
+      };
+
+      // 鍵盤導覽 (Enter 鍵行為)
+      const handleKeyDown = (e, blockIdx, cellIdx) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const next = findNextCell(blockIdx, cellIdx);
+          if (next) {
+            // 若切換到了不同的子區塊且處於小螢幕 / 單區塊模式，自動切換聚焦
+            if (next.nextBlock !== focusedBlock) {
+              setFocusedBlock(next.nextBlock);
+            }
+            setTimeout(() => {
+              const el = document.getElementById(`cell-${next.nextBlock}-${next.nextCell}`);
+              if (el) {
+                el.focus();
+                el.select && el.select();
+              }
+            }, 50);
+          }
+        }
+      };
+
+      // 匯出 Markdown 大綱
+      const exportMarkdown = () => {
+        let md = `# 【曼陀羅九宮格】${project.title || '思考成果'}\n\n`;
+        md += `> 核心主題：**${project.coreTopic || '未設定'}**\n`;
+        md += `> 思考路徑：${project.pathway === 'spiral' ? '螺旋型（順時針步驟）' : project.pathway === 'cross' ? '十字型（核心面向與細節）' : '放射型（水平擴散）'}\n`;
+        md += `> 產生時間：${new Date().toLocaleDateString()}\n\n---\n\n`;
+
+        const order = project.pathway === 'spiral' ? SPIRAL_ORDER : project.pathway === 'cross' ? [...CROSS_ORDER_P1, ...CROSS_ORDER_P2] : RADIANT_ORDER;
+
+        order.forEach((subIdx, i) => {
+          const title = project.subtopics[subIdx] || `未命名面向 ${i + 1}`;
+          md += `### ${i + 1}. ${title}\n`;
+          const subDetails = project.details[subIdx] || {};
+          const items = order.map(dIdx => subDetails[dIdx]).filter(Boolean);
+          if (items.length > 0) {
+            items.forEach((item, j) => {
+              md += `   - ${item}\n`;
+            });
+          } else {
+            md += `   - *(暫無延伸細節)*\n`;
+          }
+          md += `\n`;
+        });
+
+        const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${project.title || '九宮格思考'}-大綱.md`;
+        link.click();
+        showToast('已成功匯出 Markdown 大綱檔案！', 'success');
+      };
+
+      // 匯出 JSON 專案檔
+      const exportJSON = () => {
+        const jsonStr = JSON.stringify(project, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${project.title || '九宮格思考'}-專案.json`;
+        link.click();
+        showToast('已成功匯出 JSON 專案檔案！', 'success');
+      };
+
+      // 匯入 JSON 專案檔
+      const importJSON = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const data = JSON.parse(event.target.result);
+            if (data.coreTopic !== undefined && data.subtopics) {
+              setProject(data);
+              showToast('專案匯入成功！', 'success');
+            } else {
+              showToast('檔案格式不正確', 'error');
+            }
+          } catch (err) {
+            showToast('JSON 解析失敗', 'error');
+          }
+        };
+        reader.readAsText(file);
+      };
+
+      // 匯出 PNG 高畫質圖片
+      const exportPNG = () => {
+        showToast('正在生成高畫質 9x9 圖片，請稍候...', 'info');
+        const target = document.getElementById('mandala-export-board');
+        if (!target) return;
+
+        window.html2canvas(target, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff'
+        }).then(canvas => {
+          const imgData = canvas.toDataURL('image/png');
+          const link = document.createElement('a');
+          link.href = imgData;
+          link.download = `${project.title || '曼陀羅九宮格'}.png`;
+          link.click();
+          showToast('PNG 圖片下載完成！', 'success');
+        }).catch(err => {
+          showToast('圖片生成失敗，請重試', 'error');
+        });
+      };
+
+      // 匯出 A4 橫向 PDF
+      const exportPDF = () => {
+        showToast('正在排版並匯出 A4 橫向 PDF...', 'info');
+        const target = document.getElementById('mandala-export-board');
+        if (!target) return;
+
+        window.html2canvas(target, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff'
+        }).then(canvas => {
+          const imgData = canvas.toDataURL('image/png');
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF('landscape', 'mm', 'a4'); // A4 橫向: 297 x 210 mm
+          const pageWidth = 297;
+          const pageHeight = 210;
+          const margin = 10;
+          const imgWidth = pageWidth - margin * 2;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+          // 垂直居中
+          const y = (pageHeight - imgHeight) / 2;
+          pdf.addImage(imgData, 'PNG', margin, Math.max(margin, y), imgWidth, imgHeight);
+          pdf.save(`${project.title || '曼陀羅九宮格'}.pdf`);
+          showToast('PDF 下載完成！', 'success');
+        }).catch(err => {
+          showToast('PDF 匯出失敗，請重試', 'error');
+        });
+      };
+
+      // 統計完成進度
+      const progressStats = useMemo(() => {
+        let total = 81;
+        let filled = 0;
+        // 核心
+        if (project.coreTopic && project.coreTopic.trim()) filled++;
+        // 8 個子題
+        [0, 1, 2, 3, 5, 6, 7, 8].forEach(idx => {
+          if (project.subtopics[idx] && project.subtopics[idx].trim()) filled++;
+        });
+        // 各子區細節 (8 x 8 = 64)
+        [0, 1, 2, 3, 5, 6, 7, 8].forEach(bIdx => {
+          [0, 1, 2, 3, 5, 6, 7, 8].forEach(cIdx => {
+            if (project.details[bIdx]?.[cIdx] && project.details[bIdx][cIdx].trim()) {
+              filled++;
+            }
+          });
+        });
+        const percent = Math.round((filled / total) * 100);
+        return { filled, total, percent };
+      }, [project]);
+
+      // --- 渲染個別 3x3 九宮格區塊元件 (Block) ---
+      const renderBlock = (bIdx, isInteractive = true, isMini = false) => {
+        const isCoreBlock = bIdx === 4;
+        const colorCfg = project.colorStyle === 'inherited' ? BLOCK_COLORS[bIdx] : MINIMAL_COLORS;
+        const isExpanded = project.expandedBlocks[bIdx];
+
+        // 在進階模式下，若外圍九宮格尚未展開，呈現簡潔折疊卡片
+        if (project.mode === 'advanced' && !isCoreBlock && !isExpanded && !isMini) {
+          const subTitle = project.subtopics[bIdx] || '點擊展開深入發想';
+          const hasDetails = project.details[bIdx] && Object.values(project.details[bIdx]).some(v => v && v.trim());
+          return (
+            <div
+              key={bIdx}
+              onClick={() => {
+                setProject(prev => ({
+                  ...prev,
+                  expandedBlocks: { ...prev.expandedBlocks, [bIdx]: true }
+                }));
+                setFocusedBlock(bIdx);
+              }}
+              className={`border-2 border-dashed ${colorCfg.border} ${colorCfg.bg} rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md h-full min-h-[220px]`}
+            >
+              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${colorCfg.badge} mb-2`}>
+                子主題 #{bIdx + 1}
+              </span>
+              <h4 className="font-bold text-slate-800 text-base line-clamp-2 px-2">
+                {subTitle}
+              </h4>
+              <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+                <Icons.Maximize />
+                {hasDetails ? '已有細節 (點擊檢視)' : '點擊展開 3x3 思考'}
+              </p>
+            </div>
+          );
+        }
+
+        // 正常 3x3 格子渲染
+        return (
+          <div
+            key={bIdx}
+            className={`border-2 ${colorCfg.border} ${colorCfg.light} rounded-xl p-2 md:p-2.5 shadow-sm transition-all ${
+              focusedBlock === bIdx ? 'ring-2 ' + colorCfg.ring : ''
+            }`}
+          >
+            {/* 區塊頂部標題列 */}
+            <div className="flex items-center justify-between px-1 mb-1.5 text-xs">
+              <span className={`font-semibold px-2 py-0.5 rounded ${colorCfg.badge}`}>
+                {isCoreBlock ? '🌟 核心目標 (層級 1)' : `分支 #${bIdx + 1}：${project.subtopics[bIdx] || '未命名'}`}
+              </span>
+              {project.mode === 'advanced' && !isCoreBlock && (
+                <button
+                  type="button"
+                  title="收合此九宮格"
+                  onClick={() => {
+                    setProject(prev => ({
+                      ...prev,
+                      expandedBlocks: { ...prev.expandedBlocks, [bIdx]: false }
+                    }));
+                  }}
+                  className="text-slate-400 hover:text-slate-600 text-xs px-1.5 py-0.5 rounded hover:bg-white"
+                >
+                  收合
+                </button>
+              )}
+            </div>
+
+            {/* 3x3 網格 */}
+            <div className="grid grid-cols-3 gap-1.5 md:gap-2">
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(cIdx => {
+                const isCenter = cIdx === 4;
+                const { unlocked, isFilled, isSkipped, val } = getCellStatus(bIdx, cIdx);
+
+                // 計算引導序號 (在螺旋或十字模式下的步驟順序提示)
+                let stepLabel = '';
+                if (!isCenter && isInteractive && project.mode === 'beginner') {
+                  if (project.pathway === 'spiral') {
+                    const stepNum = SPIRAL_ORDER.indexOf(cIdx) + 1;
+                    stepLabel = `步 ${stepNum}`;
+                  } else if (project.pathway === 'cross') {
+                    if (CROSS_ORDER_P1.includes(cIdx)) stepLabel = '核心';
+                    else stepLabel = '細節';
+                  }
+                }
+
+                // 樣式計算
+                let cellBg = 'bg-white';
+                let borderStyle = 'border-slate-200';
+                let textColor = 'text-slate-800';
+
+                if (isCenter) {
+                  cellBg = isCoreBlock ? 'bg-indigo-600 text-white font-bold' : `${colorCfg.bg} font-bold ${colorCfg.text}`;
+                  borderStyle = isCoreBlock ? 'border-indigo-700 shadow' : `${colorCfg.border} shadow-sm`;
+                  textColor = isCoreBlock ? 'text-white' : colorCfg.text;
+                } else if (!unlocked) {
+                  cellBg = 'bg-slate-100/90 cursor-not-allowed';
+                  borderStyle = 'border-slate-200';
+                  textColor = 'text-slate-400';
+                } else if (isSkipped) {
+                  cellBg = 'bg-amber-50/70 border-dashed';
+                  borderStyle = 'border-amber-300';
+                } else if (isFilled) {
+                  cellBg = 'bg-white border-solid';
+                  borderStyle = `${colorCfg.border}`;
+                }
+
+                return (
+                  <div
+                    key={cIdx}
+                    className={`relative rounded-lg border flex flex-col justify-between p-1.5 md:p-2 min-h-[64px] md:min-h-[76px] transition-all ${cellBg} ${borderStyle}`}
+                  >
+                    {/* 格子右上小標記 (鎖定 / 序號 / 跳過) */}
+                    <div className="flex items-center justify-between text-[10px] select-none leading-none">
+                      {stepLabel && (
+                        <span className={`px-1 py-0.5 rounded font-mono ${isFilled ? 'text-emerald-700 bg-emerald-50' : 'text-slate-400 bg-slate-100'}`}>
+                          {stepLabel}
+                        </span>
+                      )}
+                      {!unlocked && (
+                        <span className="text-slate-400 ml-auto" title="完成前置步驟後解鎖">
+                          <Icons.Lock />
+                        </span>
+                      )}
+                      {isSkipped && (
+                        <span className="text-amber-600 font-medium ml-auto">略過</span>
+                      )}
+                      {isFilled && unlocked && (
+                        <span className="text-emerald-600 ml-auto">
+                          <Icons.Check />
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 輸入文字區塊 */}
+                    {isCenter && !isCoreBlock ? (
+                      // 外圍九宮格的中心點：唯讀同步自核心主題
+                      <div className="flex-1 flex items-center justify-center text-center px-1">
+                        <span className="text-xs md:text-sm font-bold line-clamp-2">
+                          {val || '(請先在核心區命名)'}
+                        </span>
+                      </div>
+                    ) : (
+                      // 可編輯格子
+                      <textarea
+                        id={`cell-${bIdx}-${cIdx}`}
+                        disabled={!unlocked}
+                        rows="2"
+                        value={val}
+                        placeholder={
+                          isCenter && isCoreBlock
+                            ? '填入核心發想目標...'
+                            : unlocked
+                            ? isCoreBlock
+                              ? '輸入子題關鍵字...'
+                              : '輸入具體行動或細節...'
+                            : '鎖定中'
+                        }
+                        onChange={e => updateCellValue(bIdx, cIdx, e.target.value)}
+                        onKeyDown={e => handleKeyDown(e, bIdx, cIdx)}
+                        className={`w-full text-xs md:text-sm bg-transparent resize-none outline-none leading-tight transition-colors ${textColor} placeholder-slate-300 font-medium`}
+                      />
+                    )}
+
+                    {/* 底部功能列：字數統計與跳過按鈕 */}
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5 border-t border-slate-100 mt-1">
+                      <span>{val.length}/35</span>
+                      {unlocked && !isFilled && !isCenter && project.mode === 'beginner' && (
+                        <button
+                          type="button"
+                          onClick={() => handleSkipStep(bIdx, cIdx)}
+                          className="text-amber-600 hover:text-amber-700 flex items-center gap-0.5 hover:underline"
+                        >
+                          略過
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      };
+
+      // --- 渲染 3x3 微縮導航地圖 (Mini-map) ---
+      const renderMiniMap = () => {
+        return (
+          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200 p-3 w-56 select-none">
+            <div className="flex items-center justify-between mb-2 pb-1 border-b border-slate-100 text-xs text-slate-600">
+              <span className="font-bold flex items-center gap-1">
+                <Icons.Grid />
+                九宮格導航盤
+              </span>
+              <span className="font-mono text-emerald-600 font-semibold">{progressStats.percent}%</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-1.5 aspect-square">
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(mIdx => {
+                const isCore = mIdx === 4;
+                const isSelected = focusedBlock === mIdx;
+                const color = BLOCK_COLORS[mIdx];
+                const title = isCore ? project.coreTopic || '核心' : project.subtopics[mIdx] || `#${mIdx + 1}`;
+
+                return (
+                  <button
+                    key={mIdx}
+                    type="button"
+                    onClick={() => {
+                      setFocusedBlock(mIdx);
+                      if (window.innerWidth >= 1024 && !singleBlockView) {
+                        const targetEl = document.getElementById(`block-wrapper-${mIdx}`);
+                        if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }
+                    }}
+                    className={`rounded-lg p-1 text-[10px] flex flex-col items-center justify-center transition-all ${
+                      isSelected
+                        ? 'ring-2 ring-indigo-500 scale-105 font-bold shadow-sm ' + (isCore ? 'bg-indigo-600 text-white' : color.badge)
+                        : isCore
+                        ? 'bg-indigo-100 text-indigo-900 hover:bg-indigo-200'
+                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                  >
+                    <span className="truncate max-w-[50px]">{title}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-2 text-[10px] text-slate-400 text-center">
+              點擊區塊快速切換視圖
+            </div>
+          </div>
+        );
+      };
+
+      // --- 首頁視圖 (Home View) ---
+      if (view === 'home') {
+        return (
+          <div className="min-h-screen bg-gradient-to-b from-slate-50 via-indigo-50/30 to-slate-100 p-4 md:p-8">
+            <div className="max-w-5xl mx-auto">
+              {/* 網站 Header */}
+              <header className="text-center py-8">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-100 text-indigo-800 text-sm font-medium mb-4">
+                  <Icons.Sparkles />
+                  曼陀羅雙階層思考法 (Mandala Chart)
+                </div>
+                <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">
+                  81 格雙階層九宮格思考練習
+                </h1>
+                <p className="mt-3 text-slate-600 text-sm md:text-base max-w-2xl mx-auto">
+                  結合水平放射、十字深度與螺旋步驟三大思考路徑。從中心發想核心目標，向外擴散 8 大面向，再深入 64 個實踐細節。
+                </p>
+
+                {/* 快速切換或建立按鈕 */}
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
+                  <button
+                    onClick={() => {
+                      setProject({
+                        id: 'proj_' + Date.now(),
+                        title: '自訂思考練習',
+                        mode: 'beginner',
+                        pathway: 'spiral',
+                        colorStyle: 'inherited',
+                        coreTopic: '',
+                        subtopics: {},
+                        details: {},
+                        expandedBlocks: {},
+                        skippedSteps: {}
+                      });
+                      setView('workspace');
+                    }}
+                    className="px-6 py-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all flex items-center gap-2"
+                  >
+                    <Icons.Grid />
+                    建立新空白九宮格
+                  </button>
+                  <label className="px-5 py-3 rounded-xl bg-white border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 shadow-sm cursor-pointer transition-all flex items-center gap-2">
+                    <Icons.Download />
+                    匯入 JSON 專案
+                    <input type="file" accept=".json" onChange={importJSON} className="hidden" />
+                  </label>
+                </div>
+              </header>
+
+              {/* 內建範本庫卡片清單 */}
+              <section className="mt-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <Icons.Layers />
+                    精選思考框架與教學範本
+                  </h2>
+                  <span className="text-xs text-slate-500">點擊卡片直接套用</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {TEMPLATES.map(tpl => (
+                    <div
+                      key={tpl.id}
+                      onClick={() => loadTemplate(tpl)}
+                      className="bg-white rounded-2xl p-5 border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
+                            {tpl.category}
+                          </span>
+                          <span className="text-xs text-indigo-600 font-medium">
+                            {tpl.pathway === 'spiral' ? '🌀 螺旋順序型' : tpl.pathway === 'cross' ? '➕ 十字面向型' : '☀️ 放射發想型'}
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                          {tpl.title}
+                        </h3>
+                        <p className="text-xs md:text-sm text-slate-500 mt-2 line-clamp-2">
+                          {tpl.desc}
+                        </p>
+                      </div>
+
+                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+                        <span>預設模式：{tpl.mode === 'beginner' ? '入門 (81 格強引導)' : '進階 (隨選展開)'}</span>
+                        <span className="font-semibold text-indigo-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                          立即載入 →
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* 核心思維路徑教學科普 */}
+              <section className="mt-12 bg-white rounded-2xl p-6 border border-slate-200">
+                <h3 className="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
+                  <Icons.HelpCircle />
+                  九宮格的三種核心思考路徑
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs md:text-sm">
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <h4 className="font-bold text-slate-800 text-emerald-700 mb-1">☀️ 放射型思考 (水平擴散)</h4>
+                    <p className="text-slate-600">從中間主題出發，自由聯想周圍 8 格，無特定順序。適合頭腦風暴與不受限發想。</p>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <h4 className="font-bold text-slate-800 text-sky-700 mb-1">🌀 螺旋型思考 (順序步驟)</h4>
+                    <p className="text-slate-600">按順時針順序（1~8 步）循序漸進。適合行程規劃、文章大綱、專案執行流程。</p>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <h4 className="font-bold text-slate-800 text-indigo-700 mb-1">➕ 十字型思考 (核心與細節)</h4>
+                    <p className="text-slate-600">先填寫上下左右 4 大關鍵面向（如 SWOT），再於角落填入延伸細節或應對策。</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        );
+      }
+
+      // --- 工作區視圖 (Workspace View) ---
+      return (
+        <div className="min-h-screen bg-slate-100 flex flex-col">
+          {/* 頂部功能 Navigation Bar */}
+          <header className="bg-white border-b border-slate-200 sticky top-0 z-30 px-3 md:px-6 py-2.5 shadow-sm flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setView('home')}
+                title="返回首頁"
+                className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"
+              >
+                <Icons.Home />
+              </button>
+              <div>
+                <input
+                  type="text"
+                  value={project.title}
+                  onChange={e => setProject(prev => ({ ...prev, title: e.target.value }))}
+                  className="font-bold text-base md:text-lg text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none px-1"
+                  placeholder="請輸入專案名稱..."
+                />
+                <div className="text-[11px] text-slate-400 flex items-center gap-2">
+                  <span>進度：{progressStats.filled}/81 格 ({progressStats.percent}%)</span>
+                  <span>•</span>
+                  <span>自動儲存於本機</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 控制開關：模式、路徑、風格、匯出 */}
+            <div className="flex items-center flex-wrap gap-2">
+              {/* 模式切換 */}
+              <div className="inline-flex rounded-lg bg-slate-100 p-0.5 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setProject(prev => ({ ...prev, mode: 'beginner' }))}
+                  className={`px-2.5 py-1.5 rounded-md transition-all ${
+                    project.mode === 'beginner' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  入門 (81格強約束)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProject(prev => ({ ...prev, mode: 'advanced' }))}
+                  className={`px-2.5 py-1.5 rounded-md transition-all ${
+                    project.mode === 'advanced' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  進階 (隨選展開)
+                </button>
+              </div>
+
+              {/* 思考路徑選擇 */}
+              <select
+                value={project.pathway}
+                onChange={e => setProject(prev => ({ ...prev, pathway: e.target.value }))}
+                className="bg-slate-50 border border-slate-200 text-xs font-semibold rounded-lg px-2.5 py-1.5 text-slate-700 outline-none"
+              >
+                <option value="spiral">🌀 螺旋順時針 (順序)</option>
+                <option value="cross">➕ 十字面向 (核心+細節)</option>
+                <option value="radiant">☀️ 放射自由聯想</option>
+              </select>
+
+              {/* 色彩風格切換 */}
+              <button
+                type="button"
+                onClick={() => setProject(prev => ({ ...prev, colorStyle: prev.colorStyle === 'inherited' ? 'minimal' : 'inherited' }))}
+                title="切換色彩風格"
+                className="px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                {project.colorStyle === 'inherited' ? '🎨 彩色' : '⚪ 極簡'}
+              </button>
+
+              {/* 桌機版：全景 / 單格切換 */}
+              <button
+                type="button"
+                onClick={() => setSingleBlockView(!singleBlockView)}
+                className="hidden lg:flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                <Icons.Eye />
+                {singleBlockView ? '全景 9x9' : '聚焦 3x3'}
+              </button>
+
+              {/* 匯出選單 Dropdown 按鈕 */}
+              <div className="relative group">
+                <button
+                  type="button"
+                  className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 shadow-sm flex items-center gap-1.5"
+                >
+                  <Icons.Download />
+                  匯出成果
+                </button>
+                <div className="absolute right-0 mt-1 w-44 bg-white rounded-xl shadow-xl border border-slate-200 p-1.5 hidden group-hover:block z-50">
+                  <button
+                    onClick={exportPNG}
+                    className="w-full text-left px-3 py-2 text-xs font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg flex items-center gap-2"
+                  >
+                    <span>🖼️ 高清圖檔 (PNG)</span>
+                  </button>
+                  <button
+                    onClick={exportPDF}
+                    className="w-full text-left px-3 py-2 text-xs font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg flex items-center gap-2"
+                  >
+                    <span>📄 A4 橫向 (PDF)</span>
+                  </button>
+                  <button
+                    onClick={exportMarkdown}
+                    className="w-full text-left px-3 py-2 text-xs font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg flex items-center gap-2"
+                  >
+                    <span>📝 條列大綱 (Markdown)</span>
+                  </button>
+                  <div className="my-1 border-t border-slate-100"></div>
+                  <button
+                    onClick={exportJSON}
+                    className="w-full text-left px-3 py-2 text-xs font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg flex items-center gap-2"
+                  >
+                    <span>💾 專案備份 (JSON)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* 主要畫布內容區 */}
+          <main className="flex-1 p-3 md:p-6 overflow-auto">
+            {/* 桌機全景 9x9 畫布 或 單一 3x3 聚焦視圖 */}
+            <div className="max-w-7xl mx-auto">
+              {/* 大螢幕且未開啟單區塊檢視：呈現完整的 3x3 of 3x3 (共 81 格大棋盤) */}
+              <div
+                id="mandala-export-board"
+                className={`bg-white rounded-3xl p-4 md:p-6 shadow-md border border-slate-200 ${
+                  singleBlockView ? 'max-w-2xl mx-auto' : ''
+                }`}
+              >
+                <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-black text-slate-900">
+                      {project.title || '九宮格發想矩陣'}
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      模式：{project.mode === 'beginner' ? '入門（強約束依序解鎖）' : '進階（隨選展開）'} •
+                      路徑：{project.pathway === 'spiral' ? '螺旋順時針' : project.pathway === 'cross' ? '十字核心面向' : '放射自由發想'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">
+                      完成度 {progressStats.percent}%
+                    </span>
+                  </div>
+                </div>
+
+                {singleBlockView ? (
+                  // 單一 3x3 聚焦視圖
+                  <div>
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-sm font-bold text-slate-700">
+                        正在檢視：{focusedBlock === 4 ? '核心九宮格' : `次級分支 #${focusedBlock + 1}`}
+                      </span>
+                      {focusedBlock !== 4 && (
+                        <button
+                          type="button"
+                          onClick={() => setFocusedBlock(4)}
+                          className="text-xs text-indigo-600 font-semibold hover:underline flex items-center gap-1"
+                        >
+                          <Icons.ArrowLeft /> 回到核心
+                        </button>
+                      )}
+                    </div>
+                    {renderBlock(focusedBlock, true)}
+                  </div>
+                ) : (
+                  // 完整的 3x3 區塊矩陣 (9 個九宮格 = 81 格)
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+                    {/* 排列順序：
+                        第一行：0 (左上), 1 (中上), 2 (右上)
+                        第二行：3 (左中), 4 (中心核心), 5 (右中)
+                        第三行：6 (左下), 7 (中下), 8 (右下)
+                    */}
+                    {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(bIdx => (
+                      <div id={`block-wrapper-${bIdx}`} key={bIdx}>
+                        {renderBlock(bIdx, true)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </main>
+
+          {/* 右下角懸浮 3x3 微縮地圖 (Mini-map) */}
+          <div className="fixed bottom-4 right-4 z-40">
+            {renderMiniMap()}
+          </div>
+
+          {/* 安全防呆確認 Modal */}
+          {confirmModal.isOpen && (
+            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 max-w-md w-full animate-in fade-in zoom-in duration-150">
+                <div className="flex items-center gap-3 text-rose-600 mb-3">
+                  <div className="p-2 rounded-full bg-rose-100">
+                    <Icons.Alert />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">確定清空核心主題？</h3>
+                </div>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  你正在清空主題「<strong className="text-slate-800">{confirmModal.subTitle}</strong>」。
+                  此主題底下已填寫了 <strong className="text-rose-600">{confirmModal.detailCount} 個延伸細節</strong>。
+                  若確認清空，系統將會<strong>連帶清除</strong>該次級九宮格的所有內容！
+                </p>
+                <div className="mt-6 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmModal({ isOpen: false, subIndex: null, subTitle: '', detailCount: 0 })}
+                    className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-colors"
+                  >
+                    取消保留
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmCascadeClear}
+                    className="px-4 py-2 rounded-xl bg-rose-600 text-white font-semibold text-sm hover:bg-rose-700 shadow-md transition-colors"
+                  >
+                    確認連帶清空
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 浮動 Toast 提示通知 */}
+          {toast && (
+            <div className={`fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-full shadow-lg text-xs font-semibold flex items-center gap-2 border transition-all ${
+              toast.type === 'success' ? 'bg-emerald-600 text-white border-emerald-500' :
+              toast.type === 'error' ? 'bg-rose-600 text-white border-rose-500' :
+              'bg-slate-900 text-white border-slate-800'
+            }`}>
+              <Icons.Sparkles />
+              {toast.msg}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
